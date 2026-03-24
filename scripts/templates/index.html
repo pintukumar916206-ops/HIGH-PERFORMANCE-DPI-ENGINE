@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HIGH-PERFORMANCE NETWORK PROCESSING ENGINE</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+          --bg: #0f172a;
+          --card-bg: #1e293b;
+          --primary: #3b82f6;
+          --secondary: #64748b;
+          --text: #f8fafc;
+          --text-dim: #94a3b8;
+          --accent: #ef4444;
+      }
+
+      body {
+          background-color: var(--bg);
+          color: var(--text);
+          font-family: 'Inter', sans-serif;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+      }
+
+      .container {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 1rem 2rem;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+      }
+
+      header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 3rem;
+          border-bottom: 1px solid #ffffff1a;
+          padding-bottom: 1rem;
+      }
+
+      h1 {
+          font-family: inherit;
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: var(--primary);
+      }
+
+      .upload-section {
+          background: var(--card-bg);
+          border-radius: 12px;
+          padding: 3rem;
+          text-align: center;
+          border: 2px dashed #ffffff22;
+          transition: all 0.3s ease;
+          margin-bottom: 2rem;
+      }
+
+      .upload-section:hover {
+          border-color: var(--primary);
+          background: #1a1b26;
+      }
+
+      .btn {
+          background: var(--primary);
+          border: none;
+          color: white;
+          padding: 0.8rem 2rem;
+          border-radius: 4px;
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: background 0.2s;
+      }
+
+      .btn:hover {
+          transform: scale(1.05);
+      }
+
+      .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 3rem;
+          display: none;
+      }
+
+      .stat-card {
+          background: var(--card-bg);
+          padding: 1.5rem;
+          border-radius: 10px;
+          border-left: 4px solid var(--primary);
+      }
+
+      .stat-label {
+          color: var(--text-dim);
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          margin-bottom: 0.5rem;
+      }
+
+      .stat-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          font-family: 'Orbitron', sans-serif;
+      }
+
+      .results-wrapper {
+          display: none;
+          gap: 1.5rem;
+          margin-top: 1.5rem;
+          flex: 1;
+          min-height: 0;
+      }
+
+      .flow-container, .console-container {
+          flex: 1;
+          background: var(--card-bg);
+          border-radius: 10px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          border: 1px solid #ffffff11;
+          min-width: 0;
+          padding-right: 5px;
+      }
+
+      .flow-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: auto;
+          display: none;
+      }
+
+      .console-log {
+          background: #000c1a;
+          padding: 1rem;
+          font-family: 'monospace';
+          font-size: 0.85rem;
+          min-height: 100%;
+          color: #00ff9d;
+          display: none;
+      }
+
+      .flow-table th {
+          text-align: left;
+          padding: 1rem 0.5rem;
+          background: #011b36;
+          color: var(--text-dim);
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+      }
+
+      .flow-table td {
+          padding: 1rem 0.5rem;
+          border-bottom: 1px solid #ffffff0a;
+          font-size: 0.85rem;
+          white-space: nowrap;
+      }
+
+      .app-badge {
+          background: #ffffff11;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          color: var(--primary);
+      }
+
+      .loader {
+          display: none;
+          margin: 2rem auto;
+          width: 50px;
+          height: 50px;
+          border: 5px solid #ffffff11;
+          border-top: 5px solid var(--primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+      }
+
+      .console-entry {
+          margin-bottom: 0.3rem;
+          border-left: 2px solid #00ff9d33;
+          padding-left: 0.5rem;
+      }
+
+      @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>DPI Engine - Network Analyzer</h1>
+      </header>
+
+      <div class="upload-section" id="url-zone">
+        <h2 style="margin-top: 0">Active Domain Profiler</h2>
+        <p style="color: var(--text-dim)">
+          Enter a website URL to simulate and analyze traffic
+        </p>
+        <div
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 1rem;
+          "
+        >
+          <input
+            type="text"
+            id="url-input"
+            placeholder="   "
+            style="
+              padding: 0.8rem;
+              width: 300px;
+              border-radius: 6px;
+              border: 1px solid #ffffff22;
+              background: #1a1b26;
+              color: white;
+              font-family: &quot;Inter&quot;, sans-serif;
+            "
+          />
+          <button class="btn" id="analyze-btn" onclick="startAnalysis()">
+            ANALYZE
+          </button>
+          <button
+            class="btn"
+            id="stop-btn"
+            onclick="stopAnalysis()"
+            style="
+              display: none;
+              background: linear-gradient(45deg, var(--accent), #ff5252);
+            "
+          >
+            STOP
+          </button>
+        </div>
+      </div>
+
+      <div class="loader" id="loader"></div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Packets</div>
+          <div class="stat-value" id="stat-pkts">0</div>
+        </div>
+        <div class="stat-card" style="border-left-color: var(--secondary)">
+          <div class="stat-label">Throughput</div>
+          <div class="stat-value" id="stat-pps">0 pps</div>
+        </div>
+        <div class="stat-card" style="border-left-color: var(--accent)">
+          <div class="stat-label">Avg Latency</div>
+          <div class="stat-value" id="stat-latency">0 ms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Blocked</div>
+          <div class="stat-value" id="stat-blocked">0</div>
+        </div>
+      </div>
+
+      <div class="results-wrapper" id="results-wrapper">
+        <div class="flow-container">
+          <table class="flow-table" id="flow-table">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>App</th>
+                <th>Size</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="flow-body">
+              <!-- Rows injected here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="console-container">
+          <div class="console-log" id="live-console">
+            <!-- Console items here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const urlZone = document.getElementById("url-zone");
+      const loader = document.getElementById("loader");
+      const statsGrid = document.getElementById("stats-grid");
+      const flowTable = document.getElementById("flow-table");
+      const liveConsole = document.getElementById("live-console");
+      const flowBody = document.getElementById("flow-body");
+      const resultsWrapper = document.getElementById("results-wrapper");
+
+      function resetUI() {
+        resultsWrapper.style.display = "none";
+        statsGrid.style.display = "none";
+        flowTable.style.display = "none";
+        liveConsole.innerHTML = "";
+        liveConsole.style.display = "none";
+        flowBody.innerHTML = "";
+      }
+
+      let analysisInterval = null;
+      let isAnalyzing = false;
+
+      function startAnalysis() {
+        const url = document.getElementById("url-input").value.trim();
+        if (!url) return;
+
+        isAnalyzing = true;
+        document.getElementById("analyze-btn").style.display = "none";
+        document.getElementById("stop-btn").style.display = "block";
+        document.getElementById("url-input").disabled = true;
+
+        resetUI();
+        loader.style.display = "block";
+
+        analyzeURL(url);
+        analysisInterval = setInterval(() => {
+          analyzeURL(url);
+        }, 2000);
+      }
+
+      function stopAnalysis() {
+        isAnalyzing = false;
+        clearInterval(analysisInterval);
+
+        document.getElementById("analyze-btn").style.display = "block";
+        document.getElementById("stop-btn").style.display = "none";
+        document.getElementById("url-input").disabled = false;
+
+        loader.style.display = "none";
+        urlZone.querySelector("h2").innerText = "Monitoring Stopped";
+      }
+
+      async function analyzeURL(url) {
+        try {
+          const response = await fetch("/analyze_url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url }),
+          });
+
+          const data = await response.json();
+          if (!isAnalyzing) return;
+
+          if (data.error) {
+            stopAnalysis();
+            alert(data.error);
+            return;
+          }
+          updateUI(data, `Monitoring: ${data.simulated_domain}`);
+        } catch (err) {
+          if (!isAnalyzing) return;
+          console.error(err);
+          stopAnalysis();
+          alert("Site profiling failed. See console for details.");
+        } finally {
+          if (isAnalyzing && statsGrid.style.display !== "none") {
+            // Hide loader once the first data batch arrives
+            loader.style.display = "none";
+          }
+        }
+      }
+
+      function updateUI(data, title) {
+        // Update Stats
+        document.getElementById("stat-pkts").innerText =
+          data.stats.total_packets.toLocaleString();
+        document.getElementById("stat-pps").innerText =
+          Math.round(data.stats.pps).toLocaleString() + " PPS";
+        document.getElementById("stat-latency").innerText =
+          data.stats.latency_ms.toFixed(3) + " ms";
+        document.getElementById("stat-blocked").innerText = data.stats.blocked;
+
+        // Update Flows (ACCUMULATE)
+        data.flows.forEach((f) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                        <td>${f.src}:${f.sp}</td>
+                        <td>${f.dst}:${f.dp}</td>
+                        <td><span class="app-badge">${f.app}</span></td>
+                        <td>${(f.bytes / 1024).toFixed(1)}</td>
+                        <td style="color: ${f.blocked ? "#f43f5e" : "#00e5ff"}">
+                            ${f.blocked ? "BLOCKED" : "FORWARDED"}
+                        </td>
+                `;
+          flowBody.prepend(row); // Newest on top
+        });
+
+        resultsWrapper.style.display = "flex";
+        statsGrid.style.display = "grid";
+        flowTable.style.display = "table";
+        liveConsole.style.display = "block";
+
+        // Add to Console Log
+        const time = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.className = "console-entry";
+        logEntry.innerHTML = `[${time}] <span style="color: var(--primary)">LIVE</span> | PPS: ${Math.round(data.stats.pps)} | Latency: ${data.stats.latency_ms.toFixed(3)}ms | Blocks: ${data.stats.blocked}`;
+        liveConsole.prepend(logEntry);
+
+        urlZone.style.padding = "1rem";
+        urlZone.querySelector("h2").innerText = title;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+# Build Directories
+build/
+bin/
+lib/
+out/
+dist/
+
+# CMake Artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CPackConfig.cmake
+CPackSourceConfig.cmake
+_CPack_Packages/
+install_manifest.txt
+compile_commands.json
+
+# Compiler/Language Patterns
+*.o
+*.obj
+*.ilk
+*.pdb
+*.exp
+*.lib
+*.a
+*.so
+*.dll
+*.exe
+*.d
+*.gcno
+*.gcda
+*.gcov
+
+# IDE/Project Files
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.filters
+*.swp
+*.swo
+.vs/
+*.DS_Store
+Thumbs.db
+
+# Project Specific
+.cache/
+*.log
+*.tmp
+temp/
+tests/test_output/
+uploads/
+synthetic_*.pcap
+
+# Python Patterns
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

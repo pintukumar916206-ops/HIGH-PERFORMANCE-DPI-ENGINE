@@ -6,12 +6,10 @@
 #include <cstdint>
 #include <map>
 
-// Aho-Corasick automaton for multi-pattern domain matching.
-// Optimized with a flat 256-way transition table for O(1) jumps.
 class AhoCorasick {
 public:
     AhoCorasick() {
-        trie_.emplace_back(); // Root node
+        trie_.emplace_back();
     }
 
     void addPattern(const std::string& pat) {
@@ -34,7 +32,7 @@ public:
             if (trie_[0].next[i] != -1) {
                 q.push(trie_[0].next[i]);
             } else {
-                trie_[0].next[i] = 0; // Root's missing transitions go back to root
+                trie_[0].next[i] = 0;
             }
         }
 

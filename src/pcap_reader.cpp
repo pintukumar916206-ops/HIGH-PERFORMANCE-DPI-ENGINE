@@ -20,7 +20,7 @@ bool PcapReader::open(const std::string& filename) {
         byte_swap_ = true;
     } else {
         fclose(fp_); fp_ = nullptr;
-        return false;   // not a PCAP file
+        return false;
     }
 
     snaplen_  = swap32(hdr.snaplen);
@@ -38,10 +38,8 @@ bool PcapReader::nextPacket(RawPacket& pkt) {
     uint32_t incl = swap32(phdr.incl_len);
     uint32_t orig = swap32(phdr.orig_len);
 
-    // Sanity guard — corrupt files can have absurd lengths
     if (incl > 65535) return false;
 
-    // Lease a fresh buffer from the zero-copy pool
     pkt = PacketPool::instance().lease();
     if (pkt.empty()) return false;
 

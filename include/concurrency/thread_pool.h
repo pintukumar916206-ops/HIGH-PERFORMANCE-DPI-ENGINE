@@ -12,7 +12,6 @@ public:
     explicit ThreadPool(size_t threads);
     ~ThreadPool();
 
-    // Simplified enqueue without future support for MinGW compatibility
     void enqueue(std::function<void()> task) {
         {
             compat::lock_guard<compat::mutex> lock(queue_mutex);

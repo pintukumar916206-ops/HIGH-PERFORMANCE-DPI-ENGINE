@@ -22,7 +22,7 @@
 *.la
 *.lo
 
-# Shared objects (inc. Windows DLLs)
+# Shared objects
 *.dll
 *.so
 *.so.*
@@ -39,8 +39,6 @@
 # Debug files
 *.pdb
 *.idb
-*.ilk
-*.exp
 
 # Build directories
 build/
@@ -50,16 +48,23 @@ dist/
 dist-*/
 *.log
 
-# IDEs
+# IDE & Editor
 .vscode/
 .vs/
 .history/
-.pcap/
+.cache/
+.clangd
 *.user
 *.suo
 *.sln
 *.vcxproj
 *.filters
+
+# Temporary files
+*.bak
+*.tmp
+*.swp
+*~
 
 # OS Metadata
 .DS_Store
@@ -68,7 +73,6 @@ Thumbs.db
 # Project-specific
 rules.json.bak
 *.pcap
-fix_dpi.txt
 uploads/
 results/
 tests/test_output/
@@ -83,3 +87,7 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Generated file lists (do not track)
+files.txt
+files_utf8.txt

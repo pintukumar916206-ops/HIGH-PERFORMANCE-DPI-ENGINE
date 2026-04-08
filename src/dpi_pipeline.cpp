@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdint>
 #include <unordered_map>
+#include "utils/logger.h"
 
 DpiPipeline::DpiPipeline(Config cfg)
     : cfg_(cfg), output_queue_(cfg.queue_capacity)
@@ -77,7 +78,7 @@ void DpiPipeline::run() {
 void DpiPipeline::readerThread() {
     PcapReader reader;
     if (!reader.open(cfg_.input_file)) {
-        std::cerr << "[ERROR] Could not open input file: " << cfg_.input_file << "\n";
+        LOG_ERROR("[ERROR] Could not open input file: " + cfg_.input_file);
         for (auto& q : worker_queues_) q->shutdown();
         return;
     }
@@ -187,7 +188,7 @@ void DpiPipeline::writerThread() {
 
     PcapWriter writer;
     if (!writer.open(cfg_.output_file)) {
-        std::cerr << "[ERROR] Could not open output file: " << cfg_.output_file << "\n";
+        LOG_ERROR("[ERROR] Could not open output file: " + cfg_.output_file);
         return;
     }
 

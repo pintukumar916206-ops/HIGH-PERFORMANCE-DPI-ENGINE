@@ -14,7 +14,6 @@
 #include "concurrency/lock_free_queue.h"
 #include "compat.h"
 
-// High-level pipeline orchestrator.
 class DpiPipeline {
 public:
   struct Config {

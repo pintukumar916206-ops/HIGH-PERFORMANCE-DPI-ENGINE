@@ -188,4 +188,3 @@ static void icmp_decode(const uint8_t* data, size_t len, size_t off, ParsedPacke
     (void)data;
     out.app_type = AppType::ICMP;
 }
-

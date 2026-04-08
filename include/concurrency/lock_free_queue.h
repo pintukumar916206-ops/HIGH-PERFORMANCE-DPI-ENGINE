@@ -7,21 +7,12 @@
 #include <algorithm>
 #include "compat.h"
 
-// ----------------------------------------------------------------------------
-//  LockFreeQueue (MPMC Ring Buffer)
-// ----------------------------------------------------------------------------
-//  This is a 'Bounded MPMC' queue inspired by Erik Rigtorp's design.
-//  It uses atomics with acquire/release memory orders to avoid mutex overhead.
-//  In a DPI pipeline, this keeps the reader and workers running at line rate.
-// ----------------------------------------------------------------------------
 template<typename T>
 class LockFreeQueue {
 public:
     explicit LockFreeQueue(size_t capacity)
         : capacity_(capacity), head_(0), tail_(0) {
-        // Capacity must be a power of 2 for fast seat-selection
         if (capacity < 1 || (capacity & (capacity - 1)) != 0) {
-            // Basic alignment for portfolio purposes
             size_t p2 = 1;
             while (p2 < capacity) p2 <<= 1;
             capacity_ = p2;
@@ -34,8 +25,6 @@ public:
         mask_ = capacity_ - 1;
     }
 
-    // Producer side: pushes an item into the ring.
-    // Returns false only if the queue is shut down.
     bool push(T&& data) {
         Slot* slot;
         size_t pos = tail_.load(std::memory_order_relaxed);
@@ -48,7 +37,6 @@ public:
                 if (tail_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     break;
             } else if (diff < 0) {
-                // Queue is full—spin (in production, we might yield or pause)
                 pos = tail_.load(std::memory_order_relaxed);
             } else {
                 pos = tail_.load(std::memory_order_relaxed);
@@ -60,8 +48,6 @@ public:
         return true;
     }
 
-    // Consumer side: pops an item.
-    // Returns nullopt if empty or shut down.
     compat::optional<T> pop() {
         Slot* slot;
         size_t pos = head_.load(std::memory_order_relaxed);
@@ -73,7 +59,6 @@ public:
                 if (head_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     break;
             } else if (diff < 0) {
-                // Queue is empty
                 if (shutdown_.load(std::memory_order_relaxed)) return compat::nullopt;
                 pos = head_.load(std::memory_order_relaxed);
             } else {
@@ -98,7 +83,6 @@ private:
     size_t mask_;
     std::unique_ptr<Slot[]> slots_;
     
-    // Aligned to avoid false sharing on the hot path
     alignas(64) std::atomic<size_t> head_;
     alignas(64) std::atomic<size_t> tail_;
     std::atomic<bool> shutdown_{false};

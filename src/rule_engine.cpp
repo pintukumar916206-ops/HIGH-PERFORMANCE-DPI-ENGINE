@@ -1,3 +1,4 @@
+#include "compat.h"
 #include "rule_engine.h"
 #include <iostream>
 #include <fstream>
@@ -7,6 +8,8 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <nlohmann/json.hpp>
+#include "utils/logger.h"
 
 static uint32_t dotted_to_u32(const std::string& s) {
     unsigned o[4];
@@ -25,16 +28,37 @@ static void u32_to_bytes(uint32_t ip, uint8_t out[4]) {
 }
 
 void RuleEngine::addBlockIP(const std::string& token) {
+    size_t slash = token.find('/');
+    std::string host = slash != std::string::npos ? token.substr(0, slash) : token;
+    
     if (token.find(':') != std::string::npos) {
+        int bits = slash != std::string::npos ? std::stoi(token.substr(slash + 1)) : 128;
         uint8_t v6[16] = {};
-        v6_trie_.insert(v6, 128);
-        has_v6_rules_ = true;
+        
+        bool parsed = false;
+#if defined(_WIN32)
+        struct sockaddr_in6 sa;
+        int size = sizeof(sa);
+        if (WSAStringToAddressA((LPSTR)host.c_str(), AF_INET6, NULL, (struct sockaddr*)&sa, &size) == 0) {
+            memcpy(v6, &sa.sin6_addr, 16);
+            parsed = true;
+        }
+#else
+        if (inet_pton(AF_INET6, host.c_str(), v6) == 1) {
+            parsed = true;
+        }
+#endif
+
+        if (parsed) {
+            v6_trie_.insert(v6, bits);
+            has_v6_rules_ = true;
+        } else {
+            LOG_ERROR("Invalid IPv6 Address: " + host);
+        }
         return;
     }
 
-    size_t slash = token.find('/');
-    std::string host  = slash != std::string::npos ? token.substr(0, slash) : token;
-    int         bits  = slash != std::string::npos ? std::stoi(token.substr(slash + 1)) : 32;
+    int bits = slash != std::string::npos ? std::stoi(token.substr(slash + 1)) : 32;
 
     uint32_t ip = dotted_to_u32(host);
     uint8_t  b[4];
@@ -92,41 +116,36 @@ void RuleEngine::printRules() const {
 int RuleEngine::loadFromFile(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
-        std::cerr << "[RULES] Cannot open rule file: " << path << "\n";
+        LOG_ERROR("[RULES] Cannot open rule file: " + path);
         return -1;
     }
 
-    std::string body((std::istreambuf_iterator<char>(file)),
-                      std::istreambuf_iterator<char>());
+    nlohmann::json j;
+    try {
+        file >> j;
+    } catch (const nlohmann::json::parse_error& e) {
+        LOG_ERROR(std::string("[RULES] JSON parse error in ") + path + ": " + e.what());
+        return -1;
+    }
 
-    auto field = [&](const std::string& text, const std::string& key) -> std::string {
-        std::string needle = "\"" + key + "\"";
-        size_t p = text.find(needle);
-        if (p == std::string::npos) return {};
-        p = text.find(':', p);
-        if (p == std::string::npos) return {};
-        while (++p < text.size() && (text[p] == ' ' || text[p] == '\t')) {}
-        if (p >= text.size() || text[p] != '"') return {};
-        size_t start = p + 1;
-        size_t end   = text.find('"', start);
-        return end != std::string::npos ? text.substr(start, end - start) : std::string{};
-    };
+    if (!j.contains("rules") || !j["rules"].is_array()) {
+        LOG_ERROR("[RULES] Invalid JSON format: missing 'rules' array");
+        return -1;
+    }
 
     int loaded = 0;
-    size_t cur = 0;
-
-    while (cur < body.size()) {
-        size_t open  = body.find('{', cur + 1);
-        if (open == std::string::npos) break;
-        size_t close = body.find('}', open);
-        if (close == std::string::npos) break;
-
-        std::string blk   = body.substr(open, close - open + 1);
-        cur = close;
-
-        std::string type  = field(blk, "type");
-        std::string value = field(blk, "value");
-        if (type.empty() || value.empty()) continue;
+    for (const auto& rule : j["rules"]) {
+        if (!rule.contains("type") || !rule.contains("value")) continue;
+        
+        std::string type = rule["type"].get<std::string>();
+        std::string value;
+        if (rule["value"].is_number()) {
+            value = std::to_string(rule["value"].get<int>());
+        } else if (rule["value"].is_string()) {
+            value = rule["value"].get<std::string>();
+        } else {
+            continue;
+        }
 
         if (type == "domain") {
             addBlockDomain(value);
@@ -135,7 +154,7 @@ int RuleEngine::loadFromFile(const std::string& path) {
         } else if (type == "port") {
             try { addBlockPort(static_cast<uint16_t>(std::stoi(value))); }
             catch (...) {
-                std::cerr << "[RULES] Invalid port: " << value << "\n";
+                LOG_ERROR("[RULES] Invalid port: " + value);
                 continue;
             }
         } else if (type == "app") {
@@ -150,16 +169,16 @@ int RuleEngine::loadFromFile(const std::string& path) {
                 if (value == a.name) { addBlockApp(a.type); found = true; break; }
             }
             if (!found) {
-                std::cerr << "[RULES] Unknown app: " << value << "\n";
+                LOG_ERROR("[RULES] Unknown app: " + value);
                 continue;
             }
         } else {
-            std::cerr << "[RULES] Unknown rule type: " << type << "\n";
+            LOG_ERROR("[RULES] Unknown rule type: " + type);
             continue;
         }
         ++loaded;
     }
 
-    std::cout << "[RULES] Loaded " << loaded << " rules from " << path << "\n";
+    LOG_INFO(std::string("[RULES] Loaded ") + std::to_string(loaded) + " rules from " + path);
     return loaded;
 }

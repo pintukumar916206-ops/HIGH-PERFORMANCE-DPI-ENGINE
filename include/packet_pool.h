@@ -5,6 +5,8 @@
 #include <atomic>
 #include "compat.h"
 
+#include "concurrency/lock_free_queue.h"
+
 class PacketPool {
 public:
     static constexpr uint32_t POOL_SIZE      = 16384;
@@ -28,7 +30,8 @@ private:
     PacketPool& operator=(const PacketPool&) = delete;
 
     uint8_t*  slab_ = nullptr;
-    std::vector<uint32_t>   free_indices_;
-    mutable compat::mutex   stack_mu_;
+    std::unique_ptr<LockFreeQueue<uint32_t>> free_indices_;
+    std::unique_ptr<std::atomic<bool>[]>     in_use_;
+    
     std::atomic<size_t>     available_count_{0};
 };

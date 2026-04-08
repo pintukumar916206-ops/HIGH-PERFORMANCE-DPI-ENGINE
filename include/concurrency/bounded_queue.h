@@ -17,7 +17,7 @@ public:
         std::unique_lock<std::mutex> lock(mutex_);
         if (queue_.size() >= max_size_) {
             dropped_count_++;
-            return false; // Queue full, drop packet
+            return false;
         }
         queue_.push(std::move(item));
         total_pushed_++;

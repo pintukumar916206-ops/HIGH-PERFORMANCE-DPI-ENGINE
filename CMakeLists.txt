@@ -26,6 +26,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -flto")
 endif()
 
+if(WIN32)
+    add_definitions(-D_WIN32_WINNT=0x0600 -DNTDDI_VERSION=0x06000000)
+endif()
+
 # Core Infrastructure
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
@@ -48,10 +52,16 @@ set(SOURCES
 # Main Executable
 add_executable(traffic_engine src/main.cpp ${SOURCES})
 target_link_libraries(traffic_engine PRIVATE Threads::Threads)
+if(WIN32)
+    target_link_libraries(traffic_engine PRIVATE ws2_32)
+endif()
 
 # Internal Test Suite
 add_executable(test_runner tests/test_runner.cpp ${SOURCES})
 target_link_libraries(test_runner PRIVATE Threads::Threads)
+if(WIN32)
+    target_link_libraries(test_runner PRIVATE ws2_32)
+endif()
 
 # Testing
 enable_testing()

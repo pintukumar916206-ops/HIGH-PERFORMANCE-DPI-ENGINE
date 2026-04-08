@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
  
-// Protocol Constants
 namespace proto {
     constexpr uint8_t  ICMP       =   1;
     constexpr uint8_t  TCP        =   6;
@@ -25,7 +24,7 @@ namespace proto {
     constexpr uint16_t PORT_HTTPS =   443;
     constexpr uint16_t PORT_SMTPS =   587;
 }
-// Core data structures for the NETWORK TRAFFIC ANALYSIS ENGINE.
+
 namespace tcp_flags {
     constexpr uint8_t FIN = 0x01;
     constexpr uint8_t SYN = 0x02;
@@ -35,7 +34,6 @@ namespace tcp_flags {
     constexpr uint8_t URG = 0x20;
 }
  
-// L7 Application Types
 enum class AppType : uint8_t {
     UNKNOWN    =  0,
     HTTP       =  1,
@@ -62,29 +60,23 @@ enum class AppType : uint8_t {
     ARP        = 22,
 };
  
-// Forward-declared helpers; defined in types.cpp
 std::string appTypeToString(AppType t);
 AppType     sniToAppType(const std::string& sni);
 std::string ipToString(const uint8_t* ip, bool is_ipv6);
  
-// Raw Packet Data - Cache-aligned (64 bytes) to prevent false sharing and optimize SIMD
 struct alignas(64) RawPacket {
-    uint8_t* data     = nullptr; // Pointer into pre-allocated pool (avoids data copies)
-    uint32_t len      = 0;       // Captured length
+    uint8_t* data     = nullptr;
+    uint32_t len      = 0;
     uint32_t ts_sec   = 0;
     uint32_t ts_usec  = 0;
-    uint32_t orig_len = 0;       // Wire length before snap truncation
-    uint64_t seq_num  = 0;       // Monotonic arrival sequence number
-    
-    // Internal pool management
-    void*    _pool_ref = nullptr; 
+    uint32_t orig_len = 0;
+    uint64_t seq_num  = 0;
+    void*    _pool_ref = nullptr;
 
-    // Helper for easier transition
     bool empty() const noexcept { return data == nullptr; }
     size_t size() const noexcept { return static_cast<size_t>(len); }
 };
  
-// Five-Tuple (Flow Key)
 struct FiveTuple {
     uint8_t  src_ip[16] = {0};
     uint8_t  dst_ip[16] = {0};
@@ -122,13 +114,11 @@ struct FiveTuple {
         is_ipv6 = false;
         std::memset(src_ip, 0, 16);
         std::memset(dst_ip, 0, 16);
-        // Store in first 4 bytes for simplicity (host order here usually)
         std::memcpy(src_ip, &src, 4);
         std::memcpy(dst_ip, &dst, 4);
     }
 };
  
-// FNV-1a based hasher — fast and well-distributed for IP tuples
 struct FiveTupleHash {
     std::size_t operator()(const FiveTuple& t) const noexcept {
         constexpr uint64_t BASIS = 14695981039346656037ULL;
@@ -147,19 +137,16 @@ struct FiveTupleHash {
     }
 };
  
-// Parsed Packet View
 struct ParsedPacket {
-    // ── Layer 2 ──────────────────────────────────────
     uint8_t  src_mac[6]   = {};
     uint8_t  dst_mac[6]   = {};
     uint16_t eth_type     = 0;
  
-    // ── Layer 3 ──────────────────────────────────────
     bool     has_ip       = false;
     bool     is_ipv6      = false;
     uint8_t  src_ip6[16]  = {0};
     uint8_t  dst_ip6[16]  = {0};
-    uint32_t src_ip       = 0;   // host order (v4 only)
+    uint32_t src_ip       = 0;
     uint32_t dst_ip       = 0;
     uint8_t  ip_proto     = 0;
     uint8_t  ttl          = 0;
@@ -167,7 +154,6 @@ struct ParsedPacket {
     uint16_t ip_total_len = 0;
     bool     is_fragment  = false;
  
-    // ── Layer 4 ──────────────────────────────────────
     bool     has_tcp      = false;
     bool     has_udp      = false;
     bool     has_icmp     = false;
@@ -178,19 +164,15 @@ struct ParsedPacket {
     uint8_t  tcp_flags    = 0;
     uint16_t window_size  = 0;
  
-    // ── Layer 7 ──────────────────────────────────────
-    const uint8_t* payload     = nullptr;  // pointer into raw data vector
+    const uint8_t* payload     = nullptr;
     size_t         payload_len = 0;
     AppType        app_type    = AppType::UNKNOWN;
-    std::string    sni;                    // TLS SNI or HTTP Host header
+    std::string    sni;
  
-    // ── Meta ─────────────────────────────────────────
     FiveTuple tuple;
     bool      valid       = false;
-    bool      sni_seen    = false;   // set once TLS SNI is extracted
+    bool      sni_seen    = false;
  
-    // Lightweight copy of the raw packet metadata so the flow tracker
-    // can record per-flow timestamps without holding a full RawPacket.
     struct RawMeta {
         uint32_t ts_sec   = 0;
         uint32_t ts_usec  = 0;
@@ -201,7 +183,6 @@ struct ParsedPacket {
     std::string dstIPStr() const { return ipToString(dst_ip6, is_ipv6 ? true : false); }
 };
  
-// Flow Record
 struct Flow {
     FiveTuple   key;
     AppType     app_type      = AppType::UNKNOWN;
@@ -214,15 +195,13 @@ struct Flow {
     uint32_t    last_ts_sec   = 0;
     uint32_t    last_ts_usec  = 0;
  
-    bool        blocked       = false;  // latched once; all later pkts drop
-    bool        sni_seen      = false;  // avoid re-parsing TLS on every pkt
+    bool        blocked       = false;
+    bool        sni_seen      = false;
 
-    // TCP Reassembly State
     std::vector<uint8_t> reassembly_buffer;
     uint32_t             expected_seq = 0;
     bool                 dpi_complete = false;
 
-    // Returns true if segment was appended successfully
     bool appendSegment(uint32_t seq, const uint8_t* data, uint64_t len) {
         if (dpi_complete) return false;
         if (expected_seq == 0) expected_seq = seq;
@@ -231,7 +210,6 @@ struct Flow {
         reassembly_buffer.insert(reassembly_buffer.end(), data, data + static_cast<size_t>(len));
         expected_seq += static_cast<uint32_t>(len);
         
-        // Cap at 16KB for DPI
         if (reassembly_buffer.size() > 16384) dpi_complete = true;
         return true;
     }
@@ -250,7 +228,6 @@ struct Flow {
     }
 };
  
-// Global Statistics
 struct Stats {
     std::atomic<uint64_t> total_packets     { 0 };
     std::atomic<uint64_t> total_bytes       { 0 };
@@ -258,11 +235,11 @@ struct Stats {
     std::atomic<uint64_t> udp_packets       { 0 };
     std::atomic<uint64_t> icmp_packets      { 0 };
     std::atomic<uint64_t> arp_packets       { 0 };
-    std::atomic<uint64_t> dropped_packets   { 0 };   // queue overflow drops
-    std::atomic<uint64_t> blocked_packets   { 0 };   // rule-based blocks
+    std::atomic<uint64_t> dropped_packets   { 0 };
+    std::atomic<uint64_t> blocked_packets   { 0 };
     std::atomic<uint64_t> forwarded_packets { 0 };
     std::atomic<uint64_t> malformed_packets { 0 };
-    std::atomic<uint64_t> total_latency_ns  { 0 };   // cumulative processing ns
+    std::atomic<uint64_t> total_latency_ns  { 0 };
  
     std::chrono::steady_clock::time_point start_time{
         std::chrono::steady_clock::now() };
@@ -308,7 +285,6 @@ struct Stats {
                "\"latency_ms\":" + std::to_string(avgLatencyMs()) + "}";
     }
  
-    // Reset all counters and restart the clock
     void reset() noexcept {
         total_packets.store(0);
         total_bytes.store(0);
@@ -324,7 +300,6 @@ struct Stats {
         start_time = std::chrono::steady_clock::now();
     }
  
-    // Atomics are not copyable
     Stats(const Stats&)            = delete;
     Stats& operator=(const Stats&) = delete;
     Stats()                        = default;

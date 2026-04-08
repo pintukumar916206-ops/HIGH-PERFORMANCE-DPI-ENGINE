@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include "utils/logger.h"
 
 void printHelp() {
   std::cout << "NETWORK TRAFFIC ANALYSIS ENGINE\n"
@@ -79,11 +80,10 @@ int main(int argc, char **argv) {
   }
 
   if (cfg.input_file.empty()) {
-    std::cerr << "Error: --input <file> is required.\n";
+    LOG_ERROR("Error: --input <file> is required.");
     return 1;
   }
 
-  // Benchmark mode: run 3 passes, average the results
   if (benchmark_mode) {
     const int PASSES = 3;
     double total_pps = 0, total_mbps = 0, total_us = 0;

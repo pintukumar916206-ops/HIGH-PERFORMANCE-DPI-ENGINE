@@ -1,0 +1,11 @@
+flask
+flask-cors
+flask-socketio
+python-socketio
+scapy
+gunicorn
+flask-limiter
+python-dotenv
+eventlet
+dnspython
+greenlet

@@ -1,0 +1,95 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.pyd
+
+# Build directories
+build/
+bin/
+out/
+dist/
+dist-*/
+*.log
+
+# CMake Generated
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# IDE & Editor
+.vscode/
+.vs/
+.history/
+.cache/
+.clangd
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.filters
+.idea/
+.project
+.settings/
+
+# Temporary files
+*.bak
+*.tmp
+*.swp
+*~
+backups/
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# Project-specific
+rules.json.bak
+metrics.json
+*.pcap
+!test_dpi.pcap
+uploads/*
+!uploads/.gitkeep
+results/
+tests/test_output/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.spec
+
+# Generated file lists
+files.txt
+files_utf8.txt

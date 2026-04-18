@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NETWORK TRAFFIC ANALYSIS ENGINE</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #050811;
+        --surface: #0f172a;
+        --card: rgba(30, 41, 59, 0.7);
+        --border: rgba(255, 255, 255, 0.08);
+        --primary: #3b82f6;
+        --primary-glow: rgba(59, 130, 246, 0.5);
+        --green: #10b981;
+        --yellow: #f59e0b;
+        --red: #ef4444;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --dim: #cbd5e1;
+        --glass: blur(12px) saturate(180%);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at top right, #1e293b, #0f172a), var(--bg);
+        color: var(--text);
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+        line-height: 1.5;
+      }
+
+      /* ── TOP NAV ── */
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.2rem 2.5rem;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: var(--glass);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .nav-brand {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: 0.12em;
+        text-shadow: 0 0 10px var(--primary-glow);
+      }
+      .nav-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+      }
+      .status-dot.live {
+        background: var(--green);
+        box-shadow: 0 0 12px var(--green);
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(0.95);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(0.95);
+          opacity: 1;
+        }
+      }
+
+      /* ── LAYOUT ── */
+      .page {
+        max-width: 1540px;
+        margin: 0 auto;
+        padding: 2rem 2.5rem;
+      }
+
+      /* ── URL PANEL ── */
+      .url-panel {
+        background: var(--card);
+        backdrop-filter: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.8rem 2.2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        flex-wrap: wrap;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+      .url-panel label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--primary);
+      }
+      .url-input {
+        flex: 1;
+        min-width: 300px;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.8rem 1.2rem;
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .url-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: rgba(15, 23, 42, 0.8);
+      }
+      .btn {
+        padding: 0.8rem 1.6rem;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        cursor: pointer;
+        letter-spacing: 0.05em;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+      }
+      .btn-primary:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.23);
+      }
+      .btn-stop {
+        background: var(--red);
+        color: #fff;
+        display: none;
+        box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.39);
+      }
+      .btn-stop:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+      }
+
+      /* ── SECTION HEADERS ── */
+      .section-title {
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--muted);
+        margin-bottom: 1rem;
+        padding-left: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* ── KPI ROW ── */
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.2rem;
+        margin-bottom: 2rem;
+      }
+      .kpi {
+        background: var(--card);
+        backdrop-filter: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.4rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 0.3s ease,
+          border-color 0.3s ease;
+      }
+      .kpi:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+      .kpi::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--primary);
+      }
+      .kpi.green::before {
+        background: var(--green);
+      }
+      .kpi.yellow::before {
+        background: var(--yellow);
+      }
+      .kpi.red::before {
+        background: var(--red);
+      }
+      .kpi-label {
+        font-size: 0.75rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+      }
+      .kpi-val {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #fff;
+      }
+      .kpi-sub {
+        font-size: 0.75rem;
+        color: var(--dim);
+        margin-top: 4px;
+        opacity: 0.8;
+      }
+
+      /* ── MAIN GRID ── */
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      @media (max-width: 1000px) {
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        background: var(--card);
+        backdrop-filter: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.5rem 1.8rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      }
+      .card-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .card-title .icon {
+        font-size: 1rem;
+        opacity: 0.9;
+      }
+
+      /* ── PIPELINE ── */
+      .pipeline-stage {
+        display: grid;
+        grid-template-columns: 90px 1fr 80px 80px;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s ease;
+      }
+      .pipeline-stage:last-child {
+        border-bottom: none;
+      }
+      .stage-name {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        color: var(--dim);
+        font-weight: 600;
+      }
+      .stage-bar-wrap {
+        position: relative;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .stage-bar {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, var(--primary), #60a5fa);
+        transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .stage-bar.red {
+        background: linear-gradient(90deg, var(--red), #f87171);
+      }
+      .stage-bar.yellow {
+        background: linear-gradient(90deg, var(--yellow), #fbbf24);
+      }
+      .stage-pkts {
+        text-align: right;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .stage-drop {
+        text-align: right;
+        font-size: 0.75rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .stage-drop.bad {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      /* ── PROTOCOL PIE ── */
+      .proto-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.8rem;
+      }
+      .proto-label {
+        width: 45px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.8rem;
+        color: var(--dim);
+        font-weight: 700;
+      }
+      .proto-bar-wrap {
+        flex: 1;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .proto-bar {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 0.8s ease;
+      }
+      .proto-bar.tcp {
+        background: var(--primary);
+      }
+      .proto-bar.udp {
+        background: var(--green);
+      }
+      .proto-bar.icmp {
+        background: var(--yellow);
+      }
+      .proto-count {
+        width: 60px;
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--dim);
+        font-family: "JetBrains Mono";
+        font-weight: 600;
+      }
+
+      /* ── TOP LISTS ── */
+      .top-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .top-item:last-child {
+        border-bottom: none;
+      }
+      .top-rank {
+        font-size: 0.7rem;
+        color: var(--muted);
+        width: 20px;
+        text-align: center;
+        font-weight: 800;
+      }
+      .top-label {
+        flex: 1;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      .top-bar-wrap {
+        width: 100px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+      .top-bar {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--primary);
+        transition: width 0.8s ease;
+      }
+      .top-count {
+        width: 50px;
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--dim);
+        font-family: "JetBrains Mono";
+        font-weight: 600;
+      }
+
+      /* ── RULE INSIGHTS ── */
+      .rule-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .rule-item:last-child {
+        border-bottom: none;
+      }
+      .rule-badge {
+        font-size: 0.7rem;
+        padding: 3px 10px;
+        border-radius: 6px;
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--yellow);
+        font-weight: 800;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+      }
+      .rule-hits {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      /* ── FLOW TABLE ── */
+      .flow-card {
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+      }
+      table.flow-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+      }
+      table.flow-table th {
+        text-align: left;
+        padding: 1rem 1.2rem;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 800;
+      }
+      table.flow-table td {
+        padding: 1rem 1.2rem;
+        border-bottom: 1px solid var(--border);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+      .badge-green {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .badge-red {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      /* ── CONSOLE LOG ── */
+      #console-log {
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: var(--glass);
+        border-radius: 14px;
+        padding: 1.5rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.8rem;
+        color: #38bdf8;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border);
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      .log-line {
+        margin-bottom: 6px;
+        border-left: 3px solid rgba(56, 189, 248, 0.3);
+        padding-left: 1rem;
+        animation: slideIn 0.3s ease-out;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .log-time {
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 0.75rem;
+      }
+
+      /* ── EMPTY / LOADER ── */
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+        gap: 1rem;
+      }
+      .empty-icon {
+        font-size: 2.5rem;
+        opacity: 0.5;
+        margin-bottom: 0.5rem;
+      }
+
+      /* ── SCROLLBAR ── */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--muted);
+      }
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── HIDDEN BY DEFAULT ── */
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <span class="nav-brand">NETWORK TRAFFIC ANALYSIS ENGINE</span>
+      <div class="nav-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">IDLE</span>
+      </div>
+    </nav>
+
+    <div class="page">
+      <!-- URL INPUT -->
+      <div class="url-panel">
+        <label>Analyze URL</label>
+        <input
+          class="url-input"
+          type="text"
+          id="url-input"
+          placeholder="e.g. google.com or https://youtube.com"
+        />
+        <button
+          class="btn btn-primary"
+          id="btn-analyze"
+          onclick="startAnalysis()"
+        >
+          ▶ ANALYZE
+        </button>
+        <button class="btn btn-stop" id="btn-stop" onclick="stopAnalysis()">
+          ■ STOP
+        </button>
+        <div class="spinner" id="spinner"></div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="section-title">Throughput &amp; Performance</div>
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi" id="kpi-pps">
+          <div class="kpi-label">Packets / sec</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">Throughput</div>
+        </div>
+        <div class="kpi green" id="kpi-mbs">
+          <div class="kpi-label">MB / sec</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">Bandwidth</div>
+        </div>
+        <div class="kpi yellow" id="kpi-lat">
+          <div class="kpi-label">Avg Latency</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">µs / pkt</div>
+        </div>
+        <div class="kpi" id="kpi-total">
+          <div class="kpi-label">Total Pkts</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">Processed</div>
+        </div>
+        <div class="kpi red" id="kpi-blocked">
+          <div class="kpi-label">Blocked</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">Rule matches</div>
+        </div>
+        <div class="kpi" id="kpi-dropped">
+          <div class="kpi-label">Dropped</div>
+          <div class="kpi-val">—</div>
+          <div class="kpi-sub">Queue overflow</div>
+        </div>
+      </div>
+
+      <!-- MAIN 2-COL GRID -->
+      <div class="main-grid">
+        <!-- Pipeline Health -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">⚡</span> Pipeline Health
+          </div>
+          <div id="pipeline-body">
+            <div class="empty-state">
+              <div class="empty-icon">🔄</div>
+              Awaiting analysis…
+            </div>
+          </div>
+        </div>
+
+        <!-- Protocol Distribution -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">📡</span> Protocol Distribution
+          </div>
+          <div id="proto-body">
+            <div class="empty-state">
+              <div class="empty-icon">📊</div>
+              Awaiting analysis…
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Domains -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">🌐</span> Top Observed Domains (SNI)
+          </div>
+          <div id="domains-body">
+            <div class="empty-state">
+              <div class="empty-icon">🔍</div>
+              Awaiting analysis…
+            </div>
+          </div>
+        </div>
+
+        <!-- Top IPs -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">🖧</span> Top Source / Destination IPs
+          </div>
+          <div id="ips-body">
+            <div class="empty-state">
+              <div class="empty-icon">🔍</div>
+              Awaiting analysis…
+            </div>
+          </div>
+        </div>
+
+        <!-- Rule Engine Insights -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">🛡</span> Rule Engine Insights
+          </div>
+          <div id="rules-body">
+            <div class="empty-state">
+              <div class="empty-icon">✅</div>
+              No rule matches yet
+            </div>
+          </div>
+        </div>
+
+        <!-- Backpressure Indicator -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">📈</span> System Health / Backpressure
+          </div>
+          <div id="backpressure-body">
+            <div class="empty-state">
+              <div class="empty-icon">🟢</div>
+              Awaiting analysis…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow Table -->
+      <div class="section-title">Active Flows</div>
+      <div class="card flow-card">
+        <div id="flow-wrap">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            No flows captured yet
+          </div>
+        </div>
+      </div>
+
+      <!-- Console Log -->
+      <div class="section-title">Live Log</div>
+      <div id="console-log">
+        <span style="color: var(--muted)"
+          >&gt; Engine offline. Enter a URL above to begin.</span
+        >
+      </div>
+    </div>
+    <!-- /page -->
+
+    <script>
+      let interval = null;
+      let live = false;
+
+      const $ = (id) => document.getElementById(id);
+      const kv = (id, val, sub) => {
+        const el = $(id);
+        el.querySelector(".kpi-val").textContent = val;
+        if (sub !== undefined) el.querySelector(".kpi-sub").textContent = sub;
+      };
+
+      function setStatus(text, isLive) {
+        $("status-text").textContent = text;
+        $("status-dot").className = "status-dot" + (isLive ? " live" : "");
+      }
+
+      function log(msg, color) {
+        const t = new Date().toLocaleTimeString();
+        const line = document.createElement("div");
+        line.className = "log-line";
+        line.innerHTML = `<span class="log-time">[${t}]</span> <span style="color:${color || "#22d3ee"}">${msg}</span>`;
+        $("console-log").prepend(line);
+      }
+
+      function startAnalysis() {
+        const url = $("url-input").value.trim();
+        if (!url) {
+          $("url-input").focus();
+          return;
+        }
+
+        live = true;
+        $("btn-analyze").style.display = "none";
+        $("btn-stop").style.display = "block";
+        $("spinner").style.display = "block";
+        $("url-input").disabled = true;
+        setStatus("CAPTURING", true);
+        log(`Starting analysis → ${url}`, "#3b82f6");
+
+        runOnce(url);
+        interval = setInterval(() => runOnce(url), 3000);
+      }
+
+      function stopAnalysis() {
+        live = false;
+        clearInterval(interval);
+        $("btn-analyze").style.display = "block";
+        $("btn-stop").style.display = "none";
+        $("spinner").style.display = "none";
+        $("url-input").disabled = false;
+        setStatus("STOPPED", false);
+        log("Analysis stopped.", "#ef4444");
+      }
+
+      async function runOnce(url) {
+        try {
+          const res = await fetch("/analyze_url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          const data = await res.json();
+          if (!live) return;
+          if (data.error) {
+            stopAnalysis();
+            log("ERROR: " + data.error, "#ef4444");
+            return;
+          }
+          $("spinner").style.display = "none";
+          render(data);
+        } catch (e) {
+          if (!live) return;
+          log("Fetch error: " + e.message, "#ef4444");
+        }
+      }
+
+      function esc(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function bar(pct, cls) {
+        return `<div class="stage-bar-wrap"><div class="stage-bar ${cls || ""}" style="width:${Math.min(100, pct)}%"></div></div>`;
+      }
+
+      function render(d) {
+        const t = d.totals;
+
+        // KPIs
+        kv("kpi-pps", d.throughput.pps.toLocaleString(), "pps");
+        kv("kpi-mbs", d.throughput.mb_s.toFixed(2) + " MB/s", "Bandwidth");
+        kv("kpi-lat", d.throughput.latency_us.toFixed(1) + " µs", "per packet");
+        kv("kpi-total", t.total.toLocaleString(), "processed");
+        kv("kpi-blocked", t.blocked.toLocaleString(), "rule matches");
+        kv("kpi-dropped", t.dropped.toLocaleString(), "queue overflow");
+
+        // Pipeline
+        const maxPkts = Math.max(...d.pipeline.map((s) => s.packets), 1);
+        $("pipeline-body").innerHTML = d.pipeline
+          .map((s) => {
+            const pct = (s.packets / maxPkts) * 100;
+            const cls =
+              s.drop_rate > 5 ? "red" : s.drop_rate > 1 ? "yellow" : "";
+            const dropCls = s.drop_rate > 1 ? "bad" : "";
+            return `<div class="pipeline-stage">
+        <span class="stage-name">[${esc(s.stage)}]</span>
+        ${bar(pct, cls)}
+        <span class="stage-pkts">${s.packets.toLocaleString()}</span>
+        <span class="stage-drop ${dropCls}">${s.drop_rate > 0 ? s.drop_rate.toFixed(1) + "%" : "—"}</span>
+      </div>`;
+          })
+          .join("");
+
+        // Protocol
+        const proto = d.protocol;
+        const total = proto.tcp + proto.udp + proto.icmp || 1;
+        $("proto-body").innerHTML = [
+          { name: "TCP", val: proto.tcp, cls: "tcp" },
+          { name: "UDP", val: proto.udp, cls: "udp" },
+          { name: "ICMP", val: proto.icmp, cls: "icmp" },
+        ]
+          .map(
+            (p) => `<div class="proto-row">
+      <span class="proto-label">${esc(p.name)}</span>
+      <div class="proto-bar-wrap"><div class="proto-bar ${p.cls}" style="width:${((p.val / total) * 100).toFixed(1)}%"></div></div>
+      <span class="proto-count">${p.val}</span>
+    </div>`,
+          )
+          .join("");
+
+        // Top Domains
+        const maxD = Math.max(
+          ...(d.top_domains || []).map((x) => x.packets),
+          1,
+        );
+        $("domains-body").innerHTML =
+          d.top_domains && d.top_domains.length
+            ? d.top_domains
+                .slice(0, 8)
+                .map(
+                  (item, i) => `<div class="top-item">
+          <span class="top-rank">#${i + 1}</span>
+          <span class="top-label" title="${esc(item.domain)}">${esc(item.domain)}</span>
+          <div class="top-bar-wrap"><div class="top-bar" style="width:${((item.packets / maxD) * 100).toFixed(0)}%"></div></div>
+          <span class="top-count">${item.packets}</span>
+        </div>`,
+                )
+                .join("")
+            : '<div class="empty-state"><div class="empty-icon">🔍</div>No SNI data</div>';
+
+        // Top IPs
+        const allIPs = [
+          ...(d.top_src_ips || []).map((x) => ({ ...x, type: "SRC" })),
+          ...(d.top_dst_ips || []).map((x) => ({ ...x, type: "DST" })),
+        ];
+        const maxIP = Math.max(...allIPs.map((x) => x.packets), 1);
+        $("ips-body").innerHTML =
+          allIPs
+            .slice(0, 8)
+            .map(
+              (item, i) => `<div class="top-item">
+        <span class="top-rank">${esc(item.type)}</span>
+        <span class="top-label" title="${esc(item.ip)}">${esc(item.ip)}</span>
+        <div class="top-bar-wrap"><div class="top-bar" style="width:${((item.packets / maxIP) * 100).toFixed(0)}%;background:${item.type === "SRC" ? "var(--green)" : "var(--yellow)"}"></div></div>
+        <span class="top-count">${item.packets}</span>
+      </div>`,
+            )
+            .join("") || '<div class="empty-state">No IP data</div>';
+
+        // Rule Engine
+        $("rules-body").innerHTML =
+          d.rule_matches && d.rule_matches.length
+            ? `<div style="margin-bottom:0.6rem;font-size:0.78rem;color:var(--muted)">Total matches: <b style="color:var(--red)">${d.rule_matches.reduce((a, r) => a + r.hits, 0)}</b></div>` +
+              d.rule_matches
+                .map(
+                  (r) => `<div class="rule-item">
+          <span class="top-label">${esc(r.rule)}</span>
+          <span class="rule-badge">${esc(r.type.toUpperCase())}</span>
+          <span class="rule-hits">${r.hits} hits</span>
+        </div>`,
+                )
+                .join("")
+            : '<div class="empty-state"><div class="empty-icon">✅</div>No rules triggered</div>';
+
+        // Backpressure
+        const dropPct = (t.dropped / Math.max(t.total, 1)) * 100;
+        const bpColor =
+          dropPct > 5
+            ? "var(--red)"
+            : dropPct > 1
+              ? "var(--yellow)"
+              : "var(--green)";
+        const bpStatus =
+          dropPct > 5
+            ? "⚠ HIGH BACKPRESSURE"
+            : dropPct > 1
+              ? "⚡ MILD PRESSURE"
+              : "✅ HEALTHY";
+        $("backpressure-body").innerHTML = `
+      <div style="margin-bottom:0.8rem;font-size:1.1rem;font-weight:700;color:${bpColor}">${bpStatus}</div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Queue drop rate: <b style="color:${bpColor}">${dropPct.toFixed(2)}%</b></div>
+      <div style="font-size:0.8rem;color:var(--dim);margin-bottom:0.4rem">Bottleneck stage: <b style="color:var(--yellow)">${esc(getBottleneck(d.pipeline))}</b></div>
+      <div style="font-size:0.8rem;color:var(--dim)">Forwarded: <b style="color:var(--green)">${t.forwarded}</b> / Blocked: <b style="color:var(--red)">${t.blocked}</b> / Dropped: <b style="color:var(--muted)">${t.dropped}</b></div>
+    `;
+
+        // Flow Table
+        $("flow-wrap").innerHTML =
+          d.flows && d.flows.length
+            ? `
+      <table class="flow-table">
+        <thead><tr>
+          <th>Source</th><th>Destination</th><th>Domain</th><th>Proto</th><th>Bytes</th><th>Status</th>
+        </tr></thead>
+        <tbody>${d.flows
+          .map(
+            (f) => `<tr>
+          <td>${esc(f.src)}:${f.sp}</td>
+          <td>${esc(f.dst)}:${f.dp}</td>
+          <td>${esc(f.domain) || "—"}</td>
+          <td>${esc(f.proto)}</td>
+          <td>${(f.bytes / 1024).toFixed(1)} KB</td>
+          <td class="${f.blocked ? "badge-red" : "badge-green"}">${f.blocked ? "BLOCKED" : "FORWARDED"}</td>
+        </tr>`,
+          )
+          .join("")}</tbody>
+      </table>`
+            : '<div class="empty-state">No flows captured</div>';
+
+        // Log
+        log(
+          `PPS: ${d.throughput.pps.toLocaleString()} | Latency: ${d.throughput.latency_us}µs | Blocked: ${t.blocked} | Dropped: ${t.dropped}`,
+          "#22d3ee",
+        );
+        setStatus(`LIVE — ${esc(d.domain)}`, true);
+      }
+
+      function getBottleneck(pipeline) {
+        if (!pipeline || !pipeline.length) return "Unknown";
+        return pipeline.reduce(
+          (a, b) => (b.drop_rate > a.drop_rate ? b : a),
+          pipeline[0],
+        ).stage;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DPI Engine - Real-Time Dashboard</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: #333;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      header {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      header h1 {
+        color: #1e3c72;
+        font-size: 28px;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #4caf50;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #1e3c72;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #999;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1e3c72;
+      }
+
+      .stat-unit {
+        font-size: 12px;
+        color: #999;
+        margin-left: 5px;
+      }
+
+      .controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .control-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      select,
+      input,
+      button {
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      button {
+        background: #1e3c72;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.3s;
+      }
+
+      button:hover {
+        background: #2a5298;
+      }
+
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: relative;
+        height: 400px;
+      }
+
+      .chart-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #1e3c72;
+      }
+
+      .alerts {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .alert-item {
+        padding: 12px;
+        margin-bottom: 8px;
+        border-left: 4px solid #ff9800;
+        background: #fff3e0;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      .alert-item.error {
+        border-left-color: #f44336;
+        background: #ffebee;
+      }
+
+      .alert-item.success {
+        border-left-color: #4caf50;
+        background: #e8f5e9;
+      }
+
+      .alert-time {
+        color: #999;
+        font-size: 11px;
+        margin-top: 4px;
+      }
+
+      .tables-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+      }
+
+      .table-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid #ddd;
+      }
+
+      th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #1e3c72;
+      }
+
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+      }
+
+      tr:hover {
+        background: #f9f9f9;
+      }
+
+      .connection-status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+
+      .connection-status.disconnected {
+        background: #ffebee;
+        color: #c62828;
+      }
+
+      @media (max-width: 768px) {
+        .charts-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        header {
+          flex-direction: column;
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🔍 DPI Engine - Real-Time Dashboard</h1>
+        <div class="status">
+          <div class="status-indicator"></div>
+          <span id="connection-status" class="connection-status"
+            >Connecting...</span
+          >
+        </div>
+      </header>
+
+      <div class="controls">
+        <div class="control-group">
+          <select id="interface-select">
+            <option value="">Select Network Interface...</option>
+          </select>
+          <input
+            type="number"
+            id="threads-input"
+            placeholder="Threads (default: 4)"
+            value="4"
+            min="1"
+            max="64"
+          />
+          <button id="start-btn" onclick="startCapture()">
+            🚀 Start Capture
+          </button>
+          <button id="stop-btn" onclick="stopCapture()" disabled>
+            ⏹️ Stop
+          </button>
+        </div>
+        <div class="control-group">
+          <span id="capture-status" style="color: #999; font-size: 13px"
+            >Ready to capture...</span
+          >
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Packets</div>
+          <div class="stat-value">
+            <span id="total-packets">0</span><span class="stat-unit">pkts</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Blocked Packets</div>
+          <div class="stat-value">
+            <span id="blocked-packets">0</span
+            ><span class="stat-unit">pkts</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Block Rate</div>
+          <div class="stat-value">
+            <span id="block-rate">0</span><span class="stat-unit">%</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Throughput</div>
+          <div class="stat-value">
+            <span id="throughput">0</span><span class="stat-unit">pps</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Data Volume</div>
+          <div class="stat-value">
+            <span id="data-volume">0</span><span class="stat-unit">MB</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Elapsed Time</div>
+          <div class="stat-value">
+            <span id="elapsed-time">0</span><span class="stat-unit">s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-container">
+          <div class="chart-title">📊 Throughput (packets/sec)</div>
+          <canvas id="throughput-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">🔒 Block Rate Trend</div>
+          <canvas id="blockrate-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="tables-grid">
+        <div class="table-container">
+          <div class="chart-title">🌐 Top Domains</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Packets</th>
+              </tr>
+            </thead>
+            <tbody id="top-domains">
+              <tr>
+                <td colspan="2">No data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-container">
+          <div class="chart-title">📍 Top IPs</div>
+          <table>
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Packets</th>
+              </tr>
+            </thead>
+            <tbody id="top-ips">
+              <tr>
+                <td colspan="2">No data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px">
+        <div class="alerts">
+          <div class="chart-title">🚨 Recent Alerts</div>
+          <div id="alerts-list">
+            <p style="color: #999; text-align: center">No alerts yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const socket = io();
+      let throughputChart, blockrateChart;
+      let captureActive = false;
+
+      // Charts data
+      const throughputData = [];
+      const blockrateData = [];
+      const maxDataPoints = 60; // Keep last 60 seconds
+
+      // Initialize connection
+      socket.on("connect", () => {
+        document.getElementById("connection-status").textContent = "Connected";
+        document
+          .getElementById("connection-status")
+          .classList.remove("disconnected");
+        loadInterfaces();
+        subscribeToStats();
+        subscribeToAlerts();
+      });
+
+      socket.on("disconnect", () => {
+        document.getElementById("connection-status").textContent =
+          "Disconnected";
+        document
+          .getElementById("connection-status")
+          .classList.add("disconnected");
+      });
+
+      socket.on("stats_update", (stats) => {
+        updateStats(stats);
+      });
+
+      socket.on("alert", (alert) => {
+        addAlert(alert);
+      });
+
+      // Load available interfaces
+      function loadInterfaces() {
+        fetch("/api/interfaces")
+          .then((r) => r.json())
+          .then((data) => {
+            const select = document.getElementById("interface-select");
+            data.interfaces.forEach((iface) => {
+              const option = document.createElement("option");
+              option.value = iface.name;
+              option.textContent = `${iface.name} - ${iface.description}`;
+              select.appendChild(option);
+            });
+          })
+          .catch((e) => console.error("Failed to load interfaces:", e));
+      }
+
+      function subscribeToStats() {
+        socket.emit("subscribe_stats");
+      }
+
+      function subscribeToAlerts() {
+        socket.emit("subscribe_alerts");
+      }
+
+      function updateStats(stats) {
+        // Update KPIs
+        document.getElementById("total-packets").textContent =
+          stats.packets_total.toLocaleString();
+        document.getElementById("blocked-packets").textContent =
+          stats.packets_blocked.toLocaleString();
+        document.getElementById("block-rate").textContent =
+          stats.block_rate.toFixed(1);
+        document.getElementById("throughput").textContent =
+          stats.throughput_pps.toFixed(0);
+        document.getElementById("data-volume").textContent = (
+          stats.bytes_total /
+          1024 /
+          1024
+        ).toFixed(2);
+        document.getElementById("elapsed-time").textContent =
+          stats.elapsed_seconds;
+
+        // Add data to charts
+        if (throughputData.length >= maxDataPoints) throughputData.shift();
+        if (blockrateData.length >= maxDataPoints) blockrateData.shift();
+
+        throughputData.push(stats.throughput_pps);
+        blockrateData.push(stats.block_rate);
+
+        updateCharts();
+
+        // Update top domains
+        const domainsList = document.getElementById("top-domains");
+        if (Object.keys(stats.top_domains).length > 0) {
+          domainsList.innerHTML = Object.entries(stats.top_domains)
+            .slice(0, 10)
+            .map(
+              ([domain, count]) =>
+                `<tr><td>${domain}</td><td>${count}</td></tr>`,
+            )
+            .join("");
+        }
+
+        // Update top IPs
+        const ipsList = document.getElementById("top-ips");
+        if (Object.keys(stats.top_ips).length > 0) {
+          ipsList.innerHTML = Object.entries(stats.top_ips)
+            .slice(0, 10)
+            .map(([ip, count]) => `<tr><td>${ip}</td><td>${count}</td></tr>`)
+            .join("");
+        }
+      }
+
+      function updateCharts() {
+        const labels = Array.from(
+          { length: throughputData.length },
+          (_, i) => i - throughputData.length,
+        );
+
+        if (!throughputChart) {
+          const ctx1 = document
+            .getElementById("throughput-chart")
+            .getContext("2d");
+          throughputChart = new Chart(ctx1, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Packets/sec",
+                  data: throughputData,
+                  borderColor: "#1e3c72",
+                  backgroundColor: "rgba(30, 60, 114, 0.1)",
+                  borderWidth: 2,
+                  tension: 0.4,
+                  fill: true,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: Math.max(...throughputData, 1000) * 1.2,
+                },
+              },
+            },
+          });
+
+          const ctx2 = document
+            .getElementById("blockrate-chart")
+            .getContext("2d");
+          blockrateChart = new Chart(ctx2, {
+            type: "line",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Block Rate %",
+                  data: blockrateData,
+                  borderColor: "#f44336",
+                  backgroundColor: "rgba(244, 67, 54, 0.1)",
+                  borderWidth: 2,
+                  tension: 0.4,
+                  fill: true,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true, max: 100 } },
+            },
+          });
+        } else {
+          throughputChart.data.labels = labels;
+          throughputChart.data.datasets[0].data = throughputData;
+          throughputChart.update("none");
+
+          blockrateChart.data.labels = labels;
+          blockrateChart.data.datasets[0].data = blockrateData;
+          blockrateChart.update("none");
+        }
+      }
+
+      function addAlert(alert) {
+        const list = document.getElementById("alerts-list");
+        if (list.children.length === 1 && list.children[0].tagName === "P") {
+          list.innerHTML = "";
+        }
+
+        const time = new Date(alert.timestamp).toLocaleTimeString();
+        const item = document.createElement("div");
+        item.className = `alert-item ${alert.type}`;
+        item.innerHTML = `
+                <strong>${alert.type.toUpperCase()}</strong>: ${alert.details.message || JSON.stringify(alert.details)}
+                <div class="alert-time">${time}</div>
+            `;
+        list.insertBefore(item, list.firstChild);
+
+        // Keep only last 20 alerts
+        while (list.children.length > 20) {
+          list.removeChild(list.lastChild);
+        }
+      }
+
+      function startCapture() {
+        const iface = document.getElementById("interface-select").value;
+        const threads = document.getElementById("threads-input").value;
+
+        if (!iface) {
+          alert("Please select an interface");
+          return;
+        }
+
+        fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interface: iface,
+            threads: parseInt(threads),
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            document.getElementById("capture-status").textContent =
+              `📡 Capturing on ${iface}...`;
+            document.getElementById("start-btn").disabled = true;
+            document.getElementById("interface-select").disabled = true;
+            document.getElementById("threads-input").disabled = true;
+            document.getElementById("stop-btn").disabled = false;
+            captureActive = true;
+          })
+          .catch((e) => alert("Error: " + e));
+      }
+
+      function stopCapture() {
+        document.getElementById("capture-status").textContent =
+          "Capture stopped";
+        document.getElementById("start-btn").disabled = false;
+        document.getElementById("interface-select").disabled = false;
+        document.getElementById("threads-input").disabled = false;
+        document.getElementById("stop-btn").disabled = true;
+        captureActive = false;
+      }
+    </script>
+  </body>
+</html>

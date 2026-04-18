@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+bin/
+*.o
+*.a
+*.so
+*.exe
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Logs
+logs/
+*.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# Uploads
+uploads/*
+!uploads/.gitkeep

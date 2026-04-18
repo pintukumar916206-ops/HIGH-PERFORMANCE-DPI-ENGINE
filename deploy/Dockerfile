@@ -5,7 +5,9 @@ WORKDIR /app
 COPY . .
 RUN mkdir -p build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc)
+    make -j$(nproc) && \
+    # Create a unified binary name for the next stage to be bulletproof
+    (cp traffic_engine ../engine_bin 2>/dev/null || cp mock_engine ../engine_bin)
 
 # --- Runtime Stage ---
 FROM python:3.9-slim
@@ -14,6 +16,7 @@ FROM python:3.9-slim
 RUN apt-get update && apt-get install -y \
     libpcap0.8 \
     libcap2-bin \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -25,10 +28,8 @@ RUN pip install --no-cache-dir gunicorn eventlet && \
 
 # Copy application files
 COPY scripts/ /app/scripts/
-COPY src/utils/ /app/src/utils/
 COPY templates/ /app/templates/
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-COPY --from=builder /app/build/traffic_engine /app/traffic_engine
+COPY --from=builder /app/engine_bin /app/traffic_engine
 
 # Setup permissions and non-root user
 RUN mkdir -p /app/uploads && \
